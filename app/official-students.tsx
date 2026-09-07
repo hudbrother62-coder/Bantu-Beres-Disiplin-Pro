@@ -3,6 +3,7 @@ import {useRef,useState} from 'react';
 import * as XLSX from 'xlsx';
 import {Upload,Download,PlusCircle,Save,X,Search,ChevronRight,CheckCircle2,AlertCircle,FileSpreadsheet} from 'lucide-react';
 import {sb,norm} from './client';
+import DeleteData from './delete-data';
 
 function Notice({kind='success',children}:any){return <div className={'notice '+kind}>{kind==='success'?<CheckCircle2/>:<AlertCircle/>}<span>{children}</span></div>}
 
@@ -94,7 +95,7 @@ export default function OfficialStudentsPage({school,students,reload}:any){
 
  async function save(e:any){
   e.preventDefault();
-  if(!school||!form.name.trim())return;
+  if(busy||!school||!form.name.trim())return;
   setBusy(true);
   const payload={school_id:school.id,name:form.name.trim(),nis:form.nis.trim()||null,class_name:form.class_name.trim()||null,homeroom_teacher:form.homeroom_teacher.trim()||null,parent_name:form.parent_name.trim()||null,parent_phone:form.parent_phone.trim()||null,notes:form.notes.trim()||null};
   const r=editing?await sb.from('students').update(payload).eq('id',editing.id):await sb.from('students').insert(payload);
@@ -171,6 +172,7 @@ export default function OfficialStudentsPage({school,students,reload}:any){
     <label className="full">Keterangan<textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label>
    </div>
    <div className="modalActions"><button type="button" className="ghost" onClick={()=>setModal(false)}>Batal</button><button className="primary" disabled={busy}><Save/> Simpan</button></div>
+   {editing&&<DeleteData table="students" id={editing.id} schoolId={school.id} name={editing.name} disabled={busy} onBusyChange={setBusy} onDeleted={async()=>{setModal(false);setEditing(null);setStatus('Data siswa berhasil dihapus.');await reload();}}/>}
   </form></div>}
 
   {importOpen&&<div className="modalWrap"><div className="modal largeModal modernFormModal">
