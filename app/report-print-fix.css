@@ -1,0 +1,55 @@
+/* Keep the printable school letterhead independent from the app's global header styles. */
+.officialPaper > .letterhead {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: center;
+  min-height: 82px;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+  position: static;
+  inset: auto;
+  z-index: auto;
+  color: #111;
+}
+
+.officialPaper .schoolLogo,
+.officialPaper .signatureImage,
+.officialPaper .stampImage {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+@media print {
+  /* Hide only the application toolbar. The old generic `header` rule also hid the report kop. */
+  .content > header {
+    display: none !important;
+  }
+
+  /* Override the legacy `header { display:none }` print rule for the school letterhead. */
+  .officialPaper > .letterhead {
+    display: grid !important;
+    height: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    position: static !important;
+    visibility: visible !important;
+  }
+
+  .officialPaper .schoolLogo,
+  .officialPaper .signatureImage,
+  .officialPaper .stampImage {
+    display: block !important;
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .officialPaper .stampImage {
+    opacity: .74 !important;
+  }
+}
