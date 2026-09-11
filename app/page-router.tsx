@@ -1,6 +1,6 @@
 'use client';
 import {PageRouter as LegacyPageRouter} from './modules';
-import {ProfessionalReportsPage,TemplateReportPage} from './report-template-v2';
+import {ProfessionalReportsPage,TemplateReportPage} from './report-template-v3';
 import StyledSettingsPage from './settings-page';
 import PolishedIncidentPage from './incident-page';
 import OfficialStudentsPage from './official-students';
