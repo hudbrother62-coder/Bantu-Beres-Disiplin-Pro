@@ -15,3 +15,12 @@
 .classChip:hover,.classChip.selected{border-color:var(--purple);color:var(--purple);background:var(--soft)}
 .classChip.selected b{color:var(--purple)}
 @media(max-width:520px){.studentToolbar{gap:9px}.studentToolbar .search{flex-basis:100%}.classFilter{flex:1}.classFilter select{width:100%;min-width:0}.studentToolbar .badge{display:flex;align-items:center}.side{padding-bottom:max(18px,env(safe-area-inset-bottom))}}
+
+/* Konsistensi filter kelas pada tema gelap dan terang. */
+.studentToolbar{align-items:center}
+.studentToolbar .search,.studentToolbar .classFilter,.studentToolbar .badge{min-height:46px}
+.studentToolbar .badge{display:inline-flex;align-items:center}
+.dark .classFilter{background:#151a25;border-color:#30394b}
+.dark .classFilter select{color-scheme:dark;color:#f5f7fb}
+.dark .classFilter select option{background:#151a25;color:#f5f7fb}
+.dark .classFilter select option:checked{background:#6d3ce7;color:#fff}
