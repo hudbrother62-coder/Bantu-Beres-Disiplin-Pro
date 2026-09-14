@@ -133,7 +133,12 @@ export default function OfficialStudentsPage({school,students,reload}:any){
   setRows([]);setFileName('');await reload();
  }
 
- const filtered=students.filter((s:any)=>`${s.name} ${s.nis||''} ${s.class_name||''}`.toLowerCase().includes(q.toLowerCase()));
+ const classOptions=Array.from(new Set(students.map((s:any)=>String(s.class_name||'').trim()).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b,'id',{numeric:true}));
+ const filtered=students.filter((s:any)=>{
+  const studentClass=String(s.class_name||'').trim();
+  const matchesClass=classFilter==='__all__'||(classFilter==='__unassigned__'?!studentClass:studentClass===classFilter);
+  return matchesClass&&`${s.name} ${s.nis||''} ${studentClass}`.toLowerCase().includes(q.toLowerCase());
+ });
 
  return <div className="page">
   <div className="pageLead">
