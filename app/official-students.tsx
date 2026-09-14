@@ -9,17 +9,15 @@ function Notice({kind='success',children}:any){return <div className={'notice '+
 
 function officialStudentTemplate(){
  const wb=XLSX.utils.book_new();
- for(const cls of ['7A','7B','8A']){
-  const rows:any[][]=[
-   ['ISI NAMA WALI KELAS DI SINI','','','','',''],
-   ['No.','NIS','Nama','Nama Orang Tua','NOMER TELEPON ORANG TUA','Keterangan']
-  ];
-  for(let i=1;i<=18;i++)rows.push([i,'','','','','']);
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:6},{wch:16},{wch:28},{wch:28},{wch:27},{wch:28}];
-  XLSX.utils.book_append_sheet(wb,ws,cls);
- }
- XLSX.writeFile(wb,'TAMPLET SISWA DATA.xlsx');
+ const rows:any[][]=[
+  ['ISI NAMA WALI KELAS DI SINI','','','','','',''],
+  ['No.','NIS','Nama','Kelas','Nama Orang Tua','NOMER TELEPON ORANG TUA','Keterangan']
+ ];
+ for(let i=1;i<=30;i++)rows.push([i,'','','','','','','']);
+ const ws=XLSX.utils.aoa_to_sheet(rows);
+ ws['!cols']=[{wch:6},{wch:16},{wch:28},{wch:14},{wch:28},{wch:27},{wch:28}];
+ XLSX.utils.book_append_sheet(wb,ws,'Data Siswa');
+ XLSX.writeFile(wb,'TEMPLATE DATA SISWA BERKELAS.xlsx');
 }
 
 function homeroomFromA1(value:any,row:any[]){
@@ -56,6 +54,8 @@ function parseOfficialStudents(file:ArrayBuffer){
   const idx=(...names:string[])=>headers.findIndex(h=>names.includes(h));
   const nameI=idx('nama','nama siswa','nama lengkap');
   const nisI=idx('nis','nomor induk siswa');
+  const classI=idx('kelas','kelas siswa','rombel','rombongan belajar');
+  const sheetClassName=/^(data siswa|siswa|student|students)$/i.test(className)?'':className;
   const parentI=idx('nama orang tua','orang tua','nama wali');
   const phoneI=idx('nomer telepon orang tua','nomor telepon orang tua','no telepon orang tua','no hp orang tua');
   const notesI=idx('keterangan','catatan');
@@ -71,7 +71,7 @@ function parseOfficialStudents(file:ArrayBuffer){
    out.push({
     name,
     nis:txt(nisI>=0?r[nisI]:'')||null,
-    class_name:className,
+    class_name:txt(classI>=0?r[classI]:'')||sheetClassName||null,
     homeroom_teacher:homeroom||null,
     parent_name:txt(parentI>=0?r[parentI]:'')||null,
     parent_phone:txt(phoneI>=0?r[phoneI]:'')||null,
@@ -83,7 +83,7 @@ function parseOfficialStudents(file:ArrayBuffer){
 }
 
 export default function OfficialStudentsPage({school,students,reload}:any){
- const [q,setQ]=useState(''),[modal,setModal]=useState(false),[importOpen,setImportOpen]=useState(false),[editing,setEditing]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[fileName,setFileName]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false);
+ const [q,setQ]=useState(''),[classFilter,setClassFilter]=useState('__all__'),[modal,setModal]=useState(false),[importOpen,setImportOpen]=useState(false),[editing,setEditing]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[fileName,setFileName]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false);
  const [form,setForm]=useState<any>({name:'',nis:'',class_name:'',homeroom_teacher:'',parent_name:'',parent_phone:'',notes:''});
  const fileRef=useRef<HTMLInputElement>(null);
 
@@ -137,7 +137,7 @@ export default function OfficialStudentsPage({school,students,reload}:any){
 
  return <div className="page">
   <div className="pageLead">
-   <div><h1>Data Siswa</h1><p>Kelola, cari, tambah, dan import data siswa sekolah.</p></div>
+   <div><h1>Data Siswa</h1><p>Kelola seluruh siswa atau tampilkan data per kelas tanpa mengubah data yang tersimpan.</p></div>
    <div className="leadActions">
     <button className="ghost actionBtn" onClick={officialStudentTemplate}><Download/> Download Template</button>
     <button className="ghost actionBtn" onClick={()=>setImportOpen(true)}><Upload/> Import Excel</button>
@@ -147,10 +147,12 @@ export default function OfficialStudentsPage({school,students,reload}:any){
 
   {status&&<Notice kind={status.includes('berhasil')||status.includes('selesai')?'success':'warning'}>{status}</Notice>}
 
-  <div className="toolbar">
-   <div className="search"><Search/><input placeholder="Cari nama, NIS, atau kelas..." value={q} onChange={e=>setQ(e.target.value)}/></div>
-   <span className="badge">{students.length} siswa</span>
+  <div className="toolbar studentToolbar">
+   <div className="search"><Search/><input placeholder="Cari nama atau NIS..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+   <label className="classFilter"><span>Kelas</span><select value={classFilter} onChange={e=>setClassFilter(e.target.value)}><option value="__all__">Semua kelas</option>{classOptions.map((cls:any)=><option key={cls} value={cls}>{cls}</option>)}<option value="__unassigned__">Belum ditentukan</option></select></label>
+   <span className="badge">{filtered.length}{classFilter==='__all__'?' siswa':' siswa ditampilkan'}</span>
   </div>
+  <div className="classSummary"><button type="button" className={classFilter==='__all__'?'classChip selected':'classChip'} onClick={()=>setClassFilter('__all__')}>Semua <b>{students.length}</b></button>{classOptions.map((cls:any)=>{const count=students.filter((s:any)=>String(s.class_name||'').trim()===cls).length;return <button type="button" key={cls} className={classFilter===cls?'classChip selected':'classChip'} onClick={()=>setClassFilter(cls)}>{cls} <b>{count}</b></button>})}</div>
 
   <div className="panel listPanel">
    {filtered.length?filtered.map((s:any)=><button className="student rowButton" key={s.id} onClick={()=>open(s)}>
@@ -176,11 +178,11 @@ export default function OfficialStudentsPage({school,students,reload}:any){
   </form></div>}
 
   {importOpen&&<div className="modalWrap"><div className="modal largeModal modernFormModal">
-   <div className="modalHead"><div><h3>Import Data Siswa</h3><p>Nama sheet otomatis menjadi nama kelas. Isi sel A1 dengan nama wali kelas, lalu data siswa dimulai dari baris 2.</p></div><button className="iconBtn" onClick={()=>setImportOpen(false)}><X/></button></div>
-   <button className="dropzone" onClick={()=>fileRef.current?.click()}><FileSpreadsheet/><b>{fileName||'Pilih file Excel data siswa'}</b><span>Sheet = kelas · A1 = wali kelas · baris 2 = header siswa</span></button>
+   <div className="modalHead"><div><h3>Import Data Siswa</h3><p>Gunakan kolom Kelas agar satu file langsung terbagi per kelas. Template lama dengan nama sheet sebagai kelas tetap bisa diimport.</p></div><button className="iconBtn" onClick={()=>setImportOpen(false)}><X/></button></div>
+   <button className="dropzone" onClick={()=>fileRef.current?.click()}><FileSpreadsheet/><b>{fileName||'Pilih file Excel data siswa'}</b><span>Kolom Kelas = pembagian kelas · A1 = wali kelas</span></button>
    <input hidden ref={fileRef} type="file" accept=".xlsx,.xls" onChange={e=>e.target.files?.[0]&&read(e.target.files[0])}/>
    {rows.length>0&&<div className="previewBox"><b>{rows.length} siswa terbaca</b>{rows.slice(0,8).map((r:any,i)=><div className="previewRow" key={i}><b>{r.name}</b><span>{r.class_name}{r.homeroom_teacher?` · Wali ${r.homeroom_teacher}`:''}{r.nis?` · NIS ${r.nis}`:''}</span></div>)}</div>}
-   <div className="templateStrip"><div><b>Template siap dipakai</b><span>Hanya nama siswa yang wajib. Kolom lain boleh kosong.</span></div><button className="ghost actionBtn" onClick={officialStudentTemplate}><Download/> Download Template</button></div>
+   <div className="templateStrip"><div><b>Template siap dipakai</b><span>Nama dan kelas dianjurkan diisi. Data tanpa kelas tetap masuk sebagai “Belum ditentukan”.</span></div><button className="ghost actionBtn" onClick={officialStudentTemplate}><Download/> Download Template</button></div>
    <div className="modalActions"><button className="ghost" onClick={()=>setImportOpen(false)}>Tutup</button><button className="primary" disabled={!rows.length||busy} onClick={runImport}><Upload/> {busy?'Mengimport...':'Import Sekarang'}</button></div>
   </div></div>}
  </div>;
