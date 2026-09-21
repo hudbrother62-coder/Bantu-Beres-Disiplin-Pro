@@ -11,9 +11,9 @@ export default function DeleteData({table,id,schoolId,name,disabled,onBusyChange
   if(lock.current||disabled||!id||!schoolId)return;
   const isStudent=table==='students';
   const impact=isStudent
-   ?'Siswa akan dipindahkan ke Arsip, BUKAN dihapus permanen. Catatan kejadian, pembinaan, tindak lanjut, dan dokumen tetap tersimpan.'
+   ?'Siswa akan dipindahkan ke Draft Hapus, BUKAN dihapus permanen. Catatan kejadian, pembinaan, tindak lanjut, dan dokumen tetap tersimpan.'
    :'Riwayat kejadian lama tetap menyimpan nama dan poin sebelumnya.';
-  if(!window.confirm((isStudent?'Hapus siswa dari daftar aktif':'Hapus data')+' "'+name+'"?\n\n'+impact+'\n\nPilih Batal jika tidak ingin melanjutkan.'))return;
+  if(!window.confirm((isStudent?'Masukkan siswa ke Draft Hapus':'Hapus data')+' "'+name+'"?\n\n'+impact+'\n\nPilih Batal jika tidak ingin melanjutkan.'))return;
   lock.current=true;setBusy(true);onBusyChange(true);setError('');
   try{
    if(isStudent){
@@ -31,8 +31,8 @@ export default function DeleteData({table,id,schoolId,name,disabled,onBusyChange
  }
  const isStudent=table==='students';
  return <div style={{marginTop:20,borderTop:'1px solid #d1d5db',paddingTop:16}}>
-  <button type="button" className="ghost danger" disabled={disabled||busy} onClick={remove}>{isStudent?<Archive/>:<Trash2/>}{busy?'Memproses...':isStudent?'Hapus dari daftar (Arsipkan)':'Hapus data'}</button>
-  <p style={{fontSize:12,marginTop:8}}>{isStudent?'Data siswa tidak dihapus permanen. Riwayat kejadian, pembinaan, tindak lanjut, dan dokumen tetap aman dan siswa dapat dikembalikan dari Arsip.':'Riwayat kejadian lama tetap tersimpan.'}</p>
+  <button type="button" className="ghost danger" disabled={disabled||busy} onClick={remove}>{isStudent?<Archive/>:<Trash2/>}{busy?'Memproses...':isStudent?'Masukkan ke Draft Hapus':'Hapus data'}</button>
+  <p style={{fontSize:12,marginTop:8}}>{isStudent?'Data siswa tidak dihapus permanen. Riwayat kejadian, pembinaan, tindak lanjut, dan dokumen tetap aman dan siswa dapat dikembalikan dari Draft Hapus.':'Riwayat kejadian lama tetap tersimpan.'}</p>
   {error&&<p role="alert" className="error">{error}</p>}
  </div>;
 }
