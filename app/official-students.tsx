@@ -1,7 +1,7 @@
 'use client';
 import {useRef,useState} from 'react';
 import * as XLSX from 'xlsx';
-import {Upload,Download,PlusCircle,Save,X,Search,ChevronRight,CheckCircle2,AlertCircle,FileSpreadsheet} from 'lucide-react';
+import {Upload,Download,PlusCircle,Save,X,Search,ChevronRight,CheckCircle2,AlertCircle,FileSpreadsheet,Archive} from 'lucide-react';
 import {sb,norm} from './client';
 import DeleteData from './delete-data';
 
@@ -113,6 +113,16 @@ export default function OfficialStudentsPage({school,students,reload}:any){
   }catch(e:any){setStatus(e.message||'File tidak dapat dibaca.')}
  }
 
+ async function moveOneToDraft(s:any){
+  if(busy||!school?.id)return;
+  if(!window.confirm('Masukkan "'+s.name+'" ke Draft Hapus?\n\nData belum dihapus permanen dan masih bisa dikembalikan.'))return;
+  setBusy(true);setStatus('');
+  const r=await sb.rpc('manage_students_archive',{p_student_ids:[s.id],p_all:false,p_restore:false});
+  setBusy(false);
+  if(r.error){setStatus(r.error.message||'Siswa belum dapat dimasukkan ke Draft Hapus.');return}
+  setStatus('Siswa masuk Draft Hapus. Data belum dihapus permanen.');await reload();
+ }
+
  async function runImport(){
   if(!school||!rows.length)return;
   setBusy(true);
@@ -160,11 +170,14 @@ export default function OfficialStudentsPage({school,students,reload}:any){
   <div className="classSummary"><button type="button" className={classFilter==='__all__'?'classChip selected':'classChip'} onClick={()=>setClassFilter('__all__')}>Semua <b>{students.length}</b></button>{classOptions.map((cls:any)=>{const count=students.filter((s:any)=>String(s.class_name||'').trim()===cls).length;return <button type="button" key={cls} className={classFilter===cls?'classChip selected':'classChip'} onClick={()=>setClassFilter(cls)}>{cls} <b>{count}</b></button>})}</div>
 
   <div className="panel listPanel">
-   {filtered.length?filtered.map((s:any)=><button className="student rowButton" key={s.id} onClick={()=>open(s)}>
-    <div className="avatar">{s.name[0]}</div>
-    <div className="studentInfo"><b>{s.name}</b><span>{s.class_name||'Kelas belum diisi'} · {s.nis?`NIS ${s.nis}`:'NIS kosong'}{s.homeroom_teacher?` · Wali ${s.homeroom_teacher}`:''}</span></div>
-    <ChevronRight/>
-   </button>):<div className="empty"><b>Belum ada data siswa</b></div>}
+   {filtered.length?filtered.map((s:any)=><div className="studentCompactRow" key={s.id}>
+    <button className="studentOpen" type="button" onClick={()=>open(s)}>
+     <div className="avatar">{s.name[0]}</div>
+     <div className="studentInfo"><b>{s.name}</b><span>{s.class_name||'Kelas belum diisi'} · {s.nis?`NIS ${s.nis}`:'NIS kosong'}{s.homeroom_teacher?` · Wali ${s.homeroom_teacher}`:''}</span></div>
+     <ChevronRight/>
+    </button>
+    <button className="rowDraftBtn" type="button" onClick={()=>moveOneToDraft(s)} disabled={busy} title="Masukkan ke Draft Hapus"><Archive/><span>Draft</span></button>
+   </div>):<div className="empty"><b>Belum ada data siswa</b></div>}
   </div>
 
   {modal&&<div className="modalWrap"><form className="modal largeModal modernFormModal" onSubmit={save}>
@@ -179,7 +192,7 @@ export default function OfficialStudentsPage({school,students,reload}:any){
     <label className="full">Keterangan<textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label>
    </div>
    <div className="modalActions"><button type="button" className="ghost" onClick={()=>setModal(false)}>Batal</button><button className="primary" disabled={busy}><Save/> Simpan</button></div>
-   {editing&&<DeleteData table="students" id={editing.id} schoolId={school.id} name={editing.name} disabled={busy} onBusyChange={setBusy} onDeleted={async()=>{setModal(false);setEditing(null);setStatus('Data siswa berhasil dihapus.');await reload();}}/>}
+   {editing&&<DeleteData table="students" id={editing.id} schoolId={school.id} name={editing.name} disabled={busy} onBusyChange={setBusy} onDeleted={async()=>{setModal(false);setEditing(null);setStatus('Siswa masuk Draft Hapus. Data belum dihapus permanen.');await reload();}}/>}
   </form></div>}
 
   {importOpen&&<div className="modalWrap"><div className="modal largeModal modernFormModal">
