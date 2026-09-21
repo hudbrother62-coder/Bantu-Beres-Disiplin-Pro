@@ -3,6 +3,7 @@ import {useEffect,useState} from 'react';
 import {Download,FileText,Printer,ShieldCheck} from 'lucide-react';
 import {sb} from './client';
 import {LetterPreview,TemplateReportPage} from './report-template-v2';
+import {exportStudentDocx,exportStudentPdf} from './document-export';
 
 export {LetterPreview,TemplateReportPage};
 
@@ -111,15 +112,29 @@ export function ProfessionalReportsPage({school,students,incidents}:any){
  const currentKey=[school?.id||'',studentId,docType,meetingDate,extra].join('|');
  useEffect(()=>{setNumber('');setIssuedKey('');setReportStatus('')},[studentId,docType,meetingDate,extra,school?.id]);
 
- async function ensureIssued(){
+ async function fetchFreshHistory(){
+  const all:any[]=[];let from=0;
+  while(true){
+   const {data,error}=await sb.from('incidents').select('id,student_id,type,item_name_snapshot,category_snapshot,points_snapshot,occurred_at,chronology,recorder_name').eq('school_id',school.id).eq('student_id',student.id).order('occurred_at',{ascending:false}).range(from,from+999);
+   if(error)throw error;
+   const rows=data||[];all.push(...rows);if(rows.length<1000)break;from+=1000;
+  }
+  return all;
+ }
+
+ async function ensureIssued(freshHistory?:any[]){
   if(!school||!student)return '';
   if(number&&issuedKey===currentKey)return number;
   setIssuing(true);setReportStatus('');
+  const sourceHistory=freshHistory||history;
+  const freshViolation=sourceHistory.filter((x:any)=>x.type==='violation').reduce((a:number,x:any)=>a+(x.points_snapshot||0),0);
+  const freshAchievement=sourceHistory.filter((x:any)=>x.type==='achievement').reduce((a:number,x:any)=>a+(x.points_snapshot||0),0);
+  const freshScore=Math.max(0,freshViolation-freshAchievement);
   const snapshot={
    school:{id:school.id,name:school.name,npsn:school.npsn,address:school.address,city:school.city,province:school.province,postal_code:school.postal_code,phone:school.phone,email_contact:school.email_contact,website:school.website,principal_name:school.principal_name,principal_nip:school.principal_nip,logo_url:school.logo_url,signature_url:school.signature_url,stamp_url:school.stamp_url,report_settings:settings},
    student:{id:student.id,name:student.name,nis:student.nis,nisn:student.nisn,class_name:student.class_name,parent_name:student.parent_name,parent_phone:student.parent_phone},
-   points:{violation,achievement,net:score},
-   history:history.slice(0,50).map((x:any)=>({id:x.id,type:x.type,occurred_at:x.occurred_at,item_name_snapshot:x.item_name_snapshot,points_snapshot:x.points_snapshot}))
+   points:{violation:freshViolation,achievement:freshAchievement,net:freshScore},
+   history:sourceHistory.slice(0,200).map((x:any)=>({id:x.id,type:x.type,occurred_at:x.occurred_at,item_name_snapshot:x.item_name_snapshot,points_snapshot:x.points_snapshot}))
   };
   const {data,error}=await sb.rpc('issue_report_document',{
    p_school_id:school.id,p_student_id:student.id,p_doc_type:docType,p_document_title:docTitles[docType],
@@ -135,34 +150,40 @@ export function ProfessionalReportsPage({school,students,incidents}:any){
  }
 
  async function printDocument(){
-  const documentNumber=await ensureIssued();
-  if(!documentNumber)return;
-  setTimeout(()=>window.print(),180);
+  if(!school||!student||issuing)return;
+  setIssuing(true);setReportStatus('');
+  try{
+   const freshHistory=await fetchFreshHistory();
+   if(docType==='history'&&!freshHistory.length){setReportStatus('Tidak ada data riwayat kedisiplinan untuk siswa ini. PDF kosong tidak dibuat.');return}
+   const freshViolation=freshHistory.filter((x:any)=>x.type==='violation').reduce((a:number,x:any)=>a+(x.points_snapshot||0),0);
+   const freshAchievement=freshHistory.filter((x:any)=>x.type==='achievement').reduce((a:number,x:any)=>a+(x.points_snapshot||0),0);
+   const freshScore=Math.max(0,freshViolation-freshAchievement);
+   const documentNumber=await ensureIssued(freshHistory);
+   if(!documentNumber)return;
+   await exportStudentPdf({school,settings,student,history:freshHistory,violation:freshViolation,achievement:freshAchievement,score:freshScore,title:docTitles[docType],number:documentNumber,meetingDate,extra});
+   setReportStatus('PDF berhasil dibuat dari data terbaru dan siap dibuka di HP maupun laptop.');
+  }catch(e:any){setReportStatus(e?.message||'PDF gagal dibuat.')}finally{setIssuing(false)}
  }
 
  async function downloadWord(){
-  if(!school||!student)return;
-  const documentNumber=await ensureIssued();
-  if(!documentNumber)return;
-  setWordBusy(true);
+  if(!school||!student||wordBusy)return;
+  setWordBusy(true);setReportStatus('');
   try{
-   const html=await buildWordHtml({school,settings,student,history,violation,achievement,score,title:docTitles[docType],number:documentNumber,meetingDate,extra});
-   const blob=new Blob(['\ufeff',html],{type:'application/msword;charset=utf-8'});
-   const url=URL.createObjectURL(blob);
-   const a=document.createElement('a');
-   a.href=url;
-   a.download=`${safeName(docTitles[docType])}-${safeName(student.name)}-${safeName(documentNumber)}.doc`;
-   document.body.appendChild(a);a.click();a.remove();
-   setTimeout(()=>URL.revokeObjectURL(url),1500);
-   setReportStatus(`Word editable berhasil dibuat dengan nomor ${documentNumber}. File dapat diubah lagi di Microsoft Word.`);
-  }catch(e:any){
-   setReportStatus(e?.message||'File Word gagal dibuat.');
-  }finally{setWordBusy(false)}
+   const freshHistory=await fetchFreshHistory();
+   if(docType==='history'&&!freshHistory.length){setReportStatus('Tidak ada data riwayat kedisiplinan untuk siswa ini. Word kosong tidak dibuat.');return}
+   const freshViolation=freshHistory.filter((x:any)=>x.type==='violation').reduce((a:number,x:any)=>a+(x.points_snapshot||0),0);
+   const freshAchievement=freshHistory.filter((x:any)=>x.type==='achievement').reduce((a:number,x:any)=>a+(x.points_snapshot||0),0);
+   const freshScore=Math.max(0,freshViolation-freshAchievement);
+   const documentNumber=await ensureIssued(freshHistory);
+   if(!documentNumber)return;
+   await exportStudentDocx({school,settings,student,history:freshHistory,violation:freshViolation,achievement:freshAchievement,score:freshScore,title:docTitles[docType],number:documentNumber,meetingDate,extra});
+   setReportStatus('Word .docx asli berhasil dibuat dari data terbaru. File kompatibel untuk Microsoft Word, WPS Office, dan aplikasi dokumen modern.');
+  }catch(e:any){setReportStatus(e?.message||'File Word gagal dibuat.')}finally{setWordBusy(false)}
  }
 
  const waiting=issuing||wordBusy;
  return <div className="page">
-  <div className="pageLead"><div><span className="eyebrow purple">GENERATE DOKUMEN</span><h1>Laporan & Surat</h1><p>Pilih siswa dan jenis dokumen. Hasil mengikuti template sekolah dan dapat diterbitkan sebagai PDF maupun Word editable.</p></div><div className="reportExportActions"><button className="ghost wordExportBtn" onClick={downloadWord} disabled={!student||waiting}><Download/> {wordBusy?'Membuat Word...':'Unduh Word'}</button><button className="primary" onClick={printDocument} disabled={!student||waiting}><Printer/> {issuing?'Menerbitkan...':'Cetak / Simpan PDF'}</button></div></div>
+  <div className="pageLead"><div><span className="eyebrow purple">GENERATE DOKUMEN</span><h1>Laporan & Surat</h1><p>Pilih siswa dan jenis dokumen. Hasil mengikuti template sekolah dan dapat diterbitkan sebagai PDF maupun Word editable.</p></div><div className="reportExportActions"><button className="ghost wordExportBtn" onClick={downloadWord} disabled={!student||waiting}><Download/> {wordBusy?'Membuat Word...':'Unduh Word'}</button><button className="primary" onClick={printDocument} disabled={!student||waiting}><Printer/> {issuing?'Membuat PDF...':'Unduh PDF'}</button></div></div>
   {reportStatus&&<Notice kind={reportStatus.includes('gagal')||reportStatus.includes('error')?'warning':'success'}>{reportStatus}</Notice>}
   <div className="reportComposer"><div className="reportControls panel"><label>Jenis Dokumen<select value={docType} onChange={e=>setDocType(e.target.value)}><option value="notification">Surat Pemberitahuan Orang Tua</option><option value="summon">Surat Panggilan Orang Tua</option><option value="statement">Surat Pembinaan Peserta Didik</option><option value="history">Riwayat Kedisiplinan Siswa</option></select></label><label>Pilih Siswa<select value={studentId} onChange={e=>setStudentId(e.target.value)}><option value="">Pilih siswa...</option>{students.map((s:any)=><option key={s.id} value={s.id}>{s.name}{s.class_name?` — ${s.class_name}`:''}</option>)}</select></label><label>Nomor Dokumen<input value={number} readOnly placeholder="Otomatis saat PDF / Word diterbitkan" className="autoNumberInput"/><small className="fieldHelp">PDF dan Word menggunakan nomor dokumen yang sama selama isi dokumen tidak diubah.</small></label>{docType==='summon'&&<label>Jadwal Pertemuan<input type="datetime-local" value={meetingDate} onChange={e=>setMeetingDate(e.target.value)}/></label>}<label>Catatan Tambahan<textarea value={extra} onChange={e=>setExtra(e.target.value)} placeholder="Opsional. Misalnya arahan sekolah atau hal yang perlu dibawa orang tua."/></label><div className="reportHint"><ShieldCheck/><div><b>PDF resmi + Word editable</b><span>Nomor surat tetap berurutan dan diarsipkan. Versi Word dibuat agar sekolah dapat menyesuaikan isi kembali tanpa mengubah data yang tersimpan di aplikasi.</span></div></div></div><div className="paperStage"><LetterPreview school={school} settings={settings} student={student} history={history} violation={violation} achievement={achievement} score={score} title={docTitles[docType]} number={number} meetingDate={meetingDate} extra={extra}/></div></div>
  </div>
