@@ -69,7 +69,7 @@ export function StudentArchiveTools({school,students,reload}:{school:any;student
   setSelected(new Set());await reload();
  }
 
- return <section className="student-archive-panel">
+ return <><section className="student-archive-panel">
   <div className="archive-copy">
    <span className="archive-kicker"><ShieldCheck/> DRAFT HAPUS AMAN</span>
    <h3>Hapus bertahap supaya data tidak salah terhapus</h3>
@@ -85,10 +85,10 @@ export function StudentArchiveTools({school,students,reload}:{school:any;student
 
   {mode&&<div className="modalWrap archive-modal-wrap"><section className="modal largeModal archive-modal">
    <div className="modalHead"><div><h3>{mode==='archive'?'Pilih Siswa ke Draft Hapus':'Draft Hapus Siswa'}</h3><p>{mode==='archive'?'Tahap ini hanya memindahkan siswa ke Draft Hapus. Belum ada data yang dihapus permanen.':'Filter berdasarkan kelas, kembalikan siswa, atau hapus permanen setelah konfirmasi berlapis.'}</p></div><button className="iconBtn" type="button" onClick={close} disabled={busy}><X/></button></div>
-   <div className="archive-tools"><div className="archive-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari nama atau NIS..."/></div>{mode==='restore'&&<label className="draft-class-filter"><span>Kelas</span><select value={classFilter} onChange={e=>{setClassFilter(e.target.value);setSelected(new Set())}}><option value="__all__">Semua kelas</option>{classOptions.map((cls:any)=><option key={cls} value={cls}>{cls}</option>)}<option value="__unassigned__">Belum ditentukan</option></select></label>}</div>
+   <div className="archive-tools"><div className="archive-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari nama atau NIS..."/></div><label className="draft-class-filter"><span>Kelas</span><select value={classFilter} onChange={e=>{setClassFilter(e.target.value);setSelected(new Set())}}><option value="__all__">Semua kelas</option>{classOptions.map((cls:any)=><option key={cls} value={cls}>{cls}</option>)}<option value="__unassigned__">Belum ditentukan</option></select></label></div>
    <div className="archive-selectbar"><label><input type="checkbox" checked={allVisibleSelected} onChange={toggleVisible}/> Pilih semua yang tampil</label><b>{selected.size} dipilih</b></div>
-   <div className="archive-list">{visible.length?visible.map(s=><label className="archive-row" key={s.id}><input type="checkbox" checked={selected.has(s.id)} onChange={()=>toggle(s.id)}/><span><b>{s.name}</b><small>{s.class_name||'Kelas belum diisi'}{s.nis?` · NIS ${s.nis}`:''}</small></span></label>):<div className="archive-empty">Tidak ada siswa yang sesuai pencarian.</div>}</div>
+   <div className="archive-list">{visible.length?visible.map(s=><label className="archive-row" key={s.id}><input type="checkbox" checked={selected.has(s.id)} onChange={()=>toggle(s.id)}/><span><b>{s.name}</b><small>{s.class_name||'Kelas belum diisi'}{s.nis?` · NIS ${s.nis}`:''}</small></span></label>):<div className="archive-empty">Tidak ada siswa yang sesuai pencarian dan filter kelas.</div>}</div>
    <div className="modalActions"><button className="ghost" type="button" onClick={close} disabled={busy}>Batal</button><button className={mode==='archive'?'dangerBulk':'primary'} type="button" onClick={applySelected} disabled={!selected.size||busy}>{busy?'Memproses...':mode==='archive'?`Hapus ${selected.size} dari daftar aktif`:`Kembalikan ${selected.size} siswa`}</button></div>
   </section></div>}
- </section>
+ </section>{message&&<div className={message.toLowerCase().includes("gagal")||message.toLowerCase().includes("dibatalkan")||message.toLowerCase().includes("belum dapat")?"draft-toast error":"draft-toast success"} role="status">{message}</div>}</>
 }
