@@ -1,11 +1,11 @@
 'use client';
 import {useEffect,useState} from 'react';
-import {LayoutDashboard,Users,PlusCircle,ClipboardCheck,FileText,Database,Settings,Sun,Moon,Menu,X,LogOut,School,UserRound,BarChart3,ListChecks,FileSpreadsheet,LayoutTemplate} from 'lucide-react';
+import {LayoutDashboard,Users,PlusCircle,ClipboardCheck,ClipboardList,FileText,Database,Settings,Sun,Moon,Menu,X,LogOut,School,UserRound,BarChart3,ListChecks,FileSpreadsheet,LayoutTemplate} from 'lucide-react';
 import {sb,credentialToEmail,friendlyAuthError} from './client';
 import {PageRouter} from './page-router';
 import ImportExcel from './import-excel';
 
-const nav=[['Dashboard',LayoutDashboard],['Data Siswa',Users],['Catat Kejadian',PlusCircle],['Pembinaan',ClipboardCheck],['Tindak Lanjut',ListChecks],['Laporan',FileText],['Template Laporan',LayoutTemplate],['Analitik',BarChart3],['Master Data',Database],['Import & Export',FileSpreadsheet],['Pengaturan',Settings]] as const;
+const nav=[['Dashboard',LayoutDashboard],['Data Siswa',Users],['Catat Kejadian',PlusCircle],['Pembinaan',ClipboardCheck],['Tindak Lanjut',ListChecks],['Rekap Disiplin',ClipboardList],['Laporan',FileText],['Template Laporan',LayoutTemplate],['Analitik',BarChart3],['Master Data',Database],['Import & Export',FileSpreadsheet],['Pengaturan',Settings]] as const;
 const validViews=new Set(nav.map(([name])=>name));
 
 export default function Home(){
