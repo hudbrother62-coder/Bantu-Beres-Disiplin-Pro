@@ -131,9 +131,9 @@ export default function OfficialStudentsPage({school,students,allStudents=studen
   if(allClassOptions.some((name:string)=>name!==original&&norm(name)===norm(next))){
    setStatus('Nama kelas tujuan sudah digunakan. Gunakan nama kelas yang berbeda agar data tidak tercampur.');return;
   }
-  const affected=allStudents.filter((student:any)=>String(student.class_name||'').trim()===original);
+  const affected:any[]=(allStudents as any[]).filter((student:any)=>String(student.class_name||'').trim()===original);
   if(!affected.length){setStatus('Tidak ada siswa pada kelas tersebut. Muat ulang data dan coba lagi.');return;}
-  const variants=Array.from(new Set(affected.map((student:any)=>String(student.class_name))));
+  const variants:string[]=Array.from(new Set<string>(affected.map((student:any)=>String(student.class_name))));
   setBusy(true);setStatus('');
   try{
    // One scoped UPDATE, preserving student IDs, status, and all related historical records.
@@ -180,7 +180,7 @@ export default function OfficialStudentsPage({school,students,allStudents=studen
  }
 
  const classOptions=Array.from(new Set(students.map((s:any)=>String(s.class_name||'').trim()).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b,'id',{numeric:true}));
- const allClassOptions=Array.from(new Set(allStudents.map((s:any)=>String(s.class_name||'').trim()).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b,'id',{numeric:true}));
+ const allClassOptions:string[]=Array.from(new Set<string>((allStudents as any[]).map((s:any)=>String(s.class_name||'').trim()).filter(Boolean))).sort((a:string,b:string)=>a.localeCompare(b,'id',{numeric:true}));
  const renameAffected=allStudents.filter((s:any)=>String(s.class_name||'').trim()===renameFrom);
  const renameArchived=renameAffected.filter((s:any)=>s.status==='inactive').length;
  const filtered=students.filter((s:any)=>{
