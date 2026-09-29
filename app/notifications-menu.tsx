@@ -4,6 +4,16 @@ import {Bell,CheckCheck,ChevronRight,Megaphone,X} from 'lucide-react';
 import {sb} from './client';
 import './notifications-menu.css';
 
+const CLASS_RENAME_RELEASE={
+ id:'release-2026-09-29-class-rename',
+ title:'Baru! Nama Kelas Sekarang Bisa Diubah',
+ message:'Ubah kelas 7A, 7B, dan seterusnya menjadi X TKJ, X MP, X AK, atau nama lainnya. Seluruh siswa pada kelas tersebut, termasuk yang di Draft Hapus, ikut diperbarui tanpa impor ulang. Nama siswa, NIS, dan riwayat kedisiplinan tetap aman.',
+ published_at:'2026-09-29T16:36:00+07:00',
+ action_view:'Data Siswa'
+};
+const releaseStorageKey=(userId:string)=>'bb-disiplin-release-read:'+userId+':'+CLASS_RENAME_RELEASE.id;
+
+
 function when(value:string){
  try{
   const d=new Date(value),now=new Date();
@@ -23,7 +33,24 @@ export default function NotificationsMenu({userId,navigate}:{userId:string;navig
  const [open,setOpen]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
+ const [releaseRead,setReleaseRead]=useState(true);
  const wrapRef=useRef<HTMLDivElement>(null);
+
+ useEffect(()=>{
+  try{setReleaseRead(window.localStorage.getItem(releaseStorageKey(userId))==='1')}
+  catch{setReleaseRead(false)}
+ },[userId]);
+
+ function markReleaseRead(){
+  setReleaseRead(true);
+  try{window.localStorage.setItem(releaseStorageKey(userId),'1')}catch{/* Storage may be unavailable in private mode. */}
+ }
+ function openRelease(){
+  markReleaseRead();
+  setOpen(false);
+  navigate(CLASS_RENAME_RELEASE.action_view);
+ }
+
 
  const load=useCallback(async()=>{
   if(!userId)return;
@@ -57,7 +84,7 @@ export default function NotificationsMenu({userId,navigate}:{userId:string;navig
   return()=>document.removeEventListener('mousedown',outside);
  },[]);
 
- const unread=useMemo(()=>items.filter(x=>!readIds.has(x.id)).length,[items,readIds]);
+ const unread=useMemo(()=>items.filter(x=>!readIds.has(x.id)).length+(releaseRead?0:1),[items,readIds,releaseRead]);
 
  async function markOne(id:string){
   if(readIds.has(id))return;
@@ -66,6 +93,7 @@ export default function NotificationsMenu({userId,navigate}:{userId:string;navig
  }
 
  async function markAll(){
+  markReleaseRead();
   const ids=items.filter(x=>!readIds.has(x.id)).map(x=>x.id);
   if(!ids.length)return;
   const rows=ids.map(id=>({announcement_id:id,user_id:userId,read_at:new Date().toISOString()}));
@@ -90,7 +118,16 @@ export default function NotificationsMenu({userId,navigate}:{userId:string;navig
    </div>
    {unread>0&&<button type="button" className="notifMarkAll" onClick={markAll}><CheckCheck/> Tandai semua dibaca</button>}
    <div className="notifList">
-    {loading?<div className="notifState">Memuat notifikasi...</div>:error?<div className="notifState error">{error}</div>:items.length?items.map(item=>{
+    <button type="button" className={releaseRead?'notifItem notifRelease read':'notifItem notifRelease unread'} onClick={openRelease}>
+     <span className="notifDot"/>
+     <div className="notifContent">
+      <div className="notifMeta"><span>UPDATE FITUR · 29 SEP 2026</span><span className="releaseTag">BARU</span></div>
+      <b>{CLASS_RENAME_RELEASE.title}</b>
+      <p>{CLASS_RENAME_RELEASE.message}</p>
+      <small>Buka Data Siswa <ChevronRight/></small>
+     </div>
+    </button>
+    {loading?<div className="notifState">Memuat pengumuman lainnya...</div>:error?<div className="notifState error">Pengumuman lainnya belum dapat dimuat.</div>:items.length?items.map(item=>{
      const isRead=readIds.has(item.id);
      return <button type="button" key={item.id} className={isRead?'notifItem read':'notifItem unread'} onClick={()=>void openItem(item)}>
       <span className="notifDot"/>
@@ -101,7 +138,7 @@ export default function NotificationsMenu({userId,navigate}:{userId:string;navig
        {item.action_view&&<small>Buka {item.action_view} <ChevronRight/></small>}
       </div>
      </button>
-    }):<div className="notifState">Belum ada pemberitahuan.</div>}
+    }):null}
    </div>
    <footer className="notifFoot">Bantu Beres Disiplin Pro</footer>
   </section>}
