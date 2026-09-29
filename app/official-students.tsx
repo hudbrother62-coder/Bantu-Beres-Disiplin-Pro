@@ -120,7 +120,7 @@ export default function OfficialStudentsPage({school,students,allStudents=studen
   if(!initial)return;
   setRenameFrom(initial);setRenameTo(initial);setStatus('');setRenameOpen(true);
  }
- async function renameClass(e:React.FormEvent<HTMLFormElement>){
+ async function renameClass(e:any){
   e.preventDefault();
   if(busy||!school?.id)return;
   const original=renameFrom.trim();
