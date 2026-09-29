@@ -1,0 +1,32 @@
+/* Non-destructive class rename UI; inherits the application's light/dark theme. */
+.student-page-v2 .renameLeadBtn{display:inline-flex;align-items:center;gap:7px}
+.student-page-v2 .renameLeadBtn svg{width:15px;height:15px}
+.student-page-v2 .editableClassChip{display:inline-flex;align-items:center;flex:none;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card)}
+.student-page-v2 .editableClassChip .classChip{border:0!important;border-radius:0!important;margin:0!important}
+.student-page-v2 .classRenameIcon{align-self:stretch;display:grid;place-items:center;min-width:31px;padding:6px;border:0;border-left:1px solid var(--border);color:var(--purple);background:color-mix(in srgb,var(--purple) 5%,var(--card));transition:background .18s,color .18s}
+.student-page-v2 .classRenameIcon:hover{background:var(--soft);color:var(--text)}
+.student-page-v2 .classRenameIcon svg{width:13px;height:13px}
+.classRenameModal{width:min(515px,100%);max-height:min(88dvh,750px);overflow-y:auto;overscroll-behavior:contain}
+.classRenameEyebrow{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:800;letter-spacing:.09em;color:var(--purple);margin-bottom:7px}
+.classRenameEyebrow svg{width:13px;height:13px}
+.classRenameModal .modalHead h3{font-size:20px;line-height:1.3}
+.classRenameModal .modalHead p{font-size:12px;max-width:360px}
+.classRenameModal>label{display:grid;gap:7px;font-size:12px;font-weight:700;color:var(--text);margin:17px 0}
+.classRenameModal>label input,.classRenameModal>label select{margin:0;display:block;width:100%;height:43px;border:1px solid var(--border);border-radius:11px;padding:0 12px;background:var(--bg);color:var(--text);font:inherit;outline:none}
+.classRenameModal>label input:focus,.classRenameModal>label select:focus{border-color:var(--purple);box-shadow:0 0 0 3px color-mix(in srgb,var(--purple) 15%,transparent)}
+.classRenameImpact{display:flex;gap:11px;align-items:flex-start;padding:13px;border:1px solid color-mix(in srgb,var(--purple) 18%,var(--border));border-radius:12px;background:var(--soft);margin-top:14px}
+.classRenameImpactIcon{width:33px;height:33px;display:grid;place-items:center;border-radius:9px;flex:none;background:var(--card);color:var(--purple)}
+.classRenameImpactIcon svg{width:17px;height:17px}
+.classRenameImpact strong{font-size:12px;line-height:1.45;display:block;color:var(--text)}
+.classRenameImpact span{font-size:11px;line-height:1.6;display:block;color:var(--muted);margin-top:4px}
+.classRenameModal .notice{margin:12px 0 0}
+.classRenameModal .modalActions{padding-top:15px;border-top:1px solid var(--border);flex-wrap:wrap}
+.classRenameModal button:disabled{opacity:.55;cursor:not-allowed;transform:none!important}
+@media(max-width:760px){
+ .student-page-v2 .editableClassChip .classChip{padding:7px 9px!important}
+ .student-page-v2 .classRenameIcon{min-width:30px}
+ .classRenameWrap{align-items:end;padding:10px}
+ .classRenameModal{padding:20px 17px 24px;border-radius:18px 18px 12px 12px;max-height:90dvh}
+ .classRenameModal .modalActions{display:grid;grid-template-columns:1fr 1fr}
+ .classRenameModal .modalActions button{min-height:43px;font-size:11px;padding:8px;white-space:normal}
+}
