@@ -1,7 +1,8 @@
 'use client';
 import {useRef,useState} from 'react';
 import * as XLSX from 'xlsx';
-import {Upload,Download,PlusCircle,Save,X,Search,ChevronRight,CheckCircle2,AlertCircle,FileSpreadsheet,Archive} from 'lucide-react';
+import {Upload,Download,PlusCircle,Save,X,Search,ChevronRight,CheckCircle2,AlertCircle,FileSpreadsheet,Archive,Pencil,Users} from 'lucide-react';
+import './class-rename.css';
 import {sb,norm} from './client';
 import DeleteData from './delete-data';
 
@@ -82,9 +83,10 @@ function parseOfficialStudents(file:ArrayBuffer){
  return out;
 }
 
-export default function OfficialStudentsPage({school,students,reload}:any){
+export default function OfficialStudentsPage({school,students,allStudents=students,reload}:any){
  const [q,setQ]=useState(''),[classFilter,setClassFilter]=useState('__all__'),[modal,setModal]=useState(false),[importOpen,setImportOpen]=useState(false),[editing,setEditing]=useState<any>(null),[rows,setRows]=useState<any[]>([]),[fileName,setFileName]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false);
  const [form,setForm]=useState<any>({name:'',nis:'',class_name:'',homeroom_teacher:'',parent_name:'',parent_phone:'',notes:''});
+ const [renameOpen,setRenameOpen]=useState(false),[renameFrom,setRenameFrom]=useState(''),[renameTo,setRenameTo]=useState('');
  const fileRef=useRef<HTMLInputElement>(null);
 
  function open(s:any=null){
@@ -111,6 +113,40 @@ export default function OfficialStudentsPage({school,students,reload}:any){
    setRows(parsed);
    if(!parsed.length)setStatus('Data siswa tidak ditemukan. Pastikan nama sheet adalah kelas, A1 berisi nama wali kelas, dan baris 2 berisi header siswa.');
   }catch(e:any){setStatus(e.message||'File tidak dapat dibaca.')}
+ }
+
+ function openClassRename(name:string=''){
+  const initial=name||allClassOptions[0]||'';
+  if(!initial)return;
+  setRenameFrom(initial);setRenameTo(initial);setStatus('');setRenameOpen(true);
+ }
+ async function renameClass(e:React.FormEvent<HTMLFormElement>){
+  e.preventDefault();
+  if(busy||!school?.id)return;
+  const original=renameFrom.trim();
+  const next=renameTo.trim().replace(/\s+/g,' ');
+  if(!original||!next){setStatus('Pilih kelas dan isi nama baru terlebih dahulu.');return;}
+  if(next.length>60){setStatus('Nama kelas maksimal 60 karakter.');return;}
+  if(next===original){setStatus('Nama kelas masih sama. Isi nama baru untuk melanjutkan.');return;}
+  if(allClassOptions.some((name:string)=>name!==original&&norm(name)===norm(next))){
+   setStatus('Nama kelas tujuan sudah digunakan. Gunakan nama kelas yang berbeda agar data tidak tercampur.');return;
+  }
+  const affected=allStudents.filter((student:any)=>String(student.class_name||'').trim()===original);
+  if(!affected.length){setStatus('Tidak ada siswa pada kelas tersebut. Muat ulang data dan coba lagi.');return;}
+  const variants=Array.from(new Set(affected.map((student:any)=>String(student.class_name))));
+  setBusy(true);setStatus('');
+  try{
+   // One scoped UPDATE, preserving student IDs, status, and all related historical records.
+   const {error,count}=await sb.from('students').update({class_name:next},{count:'exact'})
+     .eq('school_id',school.id).in('class_name',variants);
+   if(error)throw error;
+   if(!count)throw new Error('Tidak ada data yang diperbarui. Periksa hak akses sekolah.');
+   setClassFilter(current=>current===original?next:current);
+   setRenameOpen(false);setRenameFrom('');setRenameTo('');
+   setStatus('Kelas '+original+' berhasil diubah menjadi '+next+' untuk '+count+' siswa. Data dan riwayat tetap tersimpan.');
+   await reload();
+  }catch(error:any){setStatus(error.message||'Gagal mengubah nama kelas. Coba lagi.');}
+  finally{setBusy(false);}
  }
 
  async function moveOneToDraft(s:any){
@@ -144,6 +180,9 @@ export default function OfficialStudentsPage({school,students,reload}:any){
  }
 
  const classOptions=Array.from(new Set(students.map((s:any)=>String(s.class_name||'').trim()).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b,'id',{numeric:true}));
+ const allClassOptions=Array.from(new Set(allStudents.map((s:any)=>String(s.class_name||'').trim()).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b,'id',{numeric:true}));
+ const renameAffected=allStudents.filter((s:any)=>String(s.class_name||'').trim()===renameFrom);
+ const renameArchived=renameAffected.filter((s:any)=>s.status==='inactive').length;
  const filtered=students.filter((s:any)=>{
   const studentClass=String(s.class_name||'').trim();
   const matchesClass=classFilter==='__all__'||(classFilter==='__unassigned__'?!studentClass:studentClass===classFilter);
@@ -154,6 +193,7 @@ export default function OfficialStudentsPage({school,students,reload}:any){
   <div className="pageLead">
    <div><h1>Data Siswa</h1><p>Kelola seluruh siswa atau tampilkan data per kelas tanpa mengubah data yang tersimpan.</p></div>
    <div className="leadActions">
+    <button type="button" className="ghost actionBtn renameLeadBtn" onClick={()=>openClassRename()} disabled={!allClassOptions.length||busy}><Pencil/> Ubah Nama Kelas</button>
     <button className="ghost actionBtn" onClick={officialStudentTemplate}><Download/> Download Template</button>
     <button className="ghost actionBtn" onClick={()=>setImportOpen(true)}><Upload/> Import Excel</button>
     <button className="primary" onClick={()=>open()}><PlusCircle/> Tambah Siswa</button>
@@ -167,7 +207,7 @@ export default function OfficialStudentsPage({school,students,reload}:any){
    <label className="classFilter"><span>Kelas</span><select value={classFilter} onChange={e=>setClassFilter(e.target.value)}><option value="__all__">Semua kelas</option>{classOptions.map((cls:any)=><option key={cls} value={cls}>{cls}</option>)}<option value="__unassigned__">Belum ditentukan</option></select></label>
    <span className="badge">{filtered.length}{classFilter==='__all__'?' siswa':' siswa ditampilkan'}</span>
   </div>
-  <div className="classSummary"><button type="button" className={classFilter==='__all__'?'classChip selected':'classChip'} onClick={()=>setClassFilter('__all__')}>Semua <b>{students.length}</b></button>{classOptions.map((cls:any)=>{const count=students.filter((s:any)=>String(s.class_name||'').trim()===cls).length;return <button type="button" key={cls} className={classFilter===cls?'classChip selected':'classChip'} onClick={()=>setClassFilter(cls)}>{cls} <b>{count}</b></button>})}</div>
+  <div className="classSummary"><button type="button" className={classFilter==='__all__'?'classChip selected':'classChip'} onClick={()=>setClassFilter('__all__')}>Semua <b>{students.length}</b></button>{classOptions.map((cls:any)=>{const count=students.filter((s:any)=>String(s.class_name||'').trim()===cls).length;return <div className="editableClassChip" key={cls}><button type="button" className={classFilter===cls?'classChip selected':'classChip'} onClick={()=>setClassFilter(cls)}>{cls} <b>{count}</b></button><button type="button" className="classRenameIcon" onClick={()=>openClassRename(cls)} aria-label={'Ubah nama kelas '+cls} title={'Ubah nama kelas '+cls}><Pencil/></button></div>})}</div>
 
   <div className="panel listPanel">
    {filtered.length?filtered.map((s:any)=><div className="studentCompactRow" key={s.id}>
@@ -179,6 +219,17 @@ export default function OfficialStudentsPage({school,students,reload}:any){
     <button className="rowDraftBtn" type="button" onClick={()=>moveOneToDraft(s)} disabled={busy} title="Masukkan ke Draft Hapus"><Archive/><span>Draft</span></button>
    </div>):<div className="empty"><b>Belum ada data siswa</b></div>}
   </div>
+
+
+  {renameOpen&&<div className="modalWrap classRenameWrap"><form className="modal largeModal classRenameModal" onSubmit={renameClass} role="dialog" aria-modal="true" aria-labelledby="rename-class-title">
+   <div className="modalHead"><div><span className="classRenameEyebrow"><Pencil/> KELOLA KELAS</span><h3 id="rename-class-title">Ubah Nama Kelas</h3><p>Ganti nama kelas tanpa menghapus atau mengimpor ulang data siswa.</p></div><button type="button" className="iconBtn" onClick={()=>setRenameOpen(false)} disabled={busy} aria-label="Tutup"><X/></button></div>
+   <label>Kelas yang ingin diubah<select value={renameFrom} onChange={e=>{setRenameFrom(e.target.value);setRenameTo(e.target.value);setStatus('')}} disabled={busy} required>{allClassOptions.map((c:string)=><option key={c} value={c}>{c}</option>)}</select></label>
+   <label>Nama kelas baru *<input autoFocus value={renameTo} onChange={e=>setRenameTo(e.target.value)} maxLength={60} disabled={busy} required placeholder="Contoh: X TKJ, X MP, X AK"/></label>
+   <div className="classRenameImpact"><div className="classRenameImpactIcon"><Users/></div><div><strong>{renameAffected.length} siswa akan mengikuti nama kelas baru</strong><span>{renameAffected.length-renameArchived} siswa aktif · {renameArchived} siswa di Draft Hapus. Nama kelas berubah sekaligus; nama siswa, NIS, status, catatan kejadian, pembinaan, dan tindak lanjut tetap tersimpan.</span></div></div>
+   {allClassOptions.some((c:string)=>c!==renameFrom&&norm(c)===norm(renameTo.trim()))&&<Notice kind="warning">Nama kelas tujuan sudah ada. Gunakan nama lain agar dua kelas tidak tercampur.</Notice>}
+   {status&&<Notice kind={status.includes('berhasil')?'success':'warning'}>{status}</Notice>}
+   <div className="modalActions"><button type="button" className="ghost" onClick={()=>setRenameOpen(false)} disabled={busy}>Batal</button><button type="submit" className="primary" disabled={busy||!renameTo.trim()||renameTo.trim()===renameFrom.trim()}><Save/> {busy?'Menyimpan…':'Simpan Nama Kelas'}</button></div>
+  </form></div>}
 
   {modal&&<div className="modalWrap"><form className="modal largeModal modernFormModal" onSubmit={save}>
    <div className="modalHead"><div><h3>{editing?'Edit Siswa':'Tambah Siswa'}</h3><p>Nama wajib. Data lainnya boleh dikosongkan dan dilengkapi nanti.</p></div><button type="button" className="iconBtn" onClick={()=>setModal(false)}><X/></button></div>
