@@ -6,6 +6,6 @@ export default function StudentsPageV2(props:any){
  const activeStudents=(props.students||[]).filter((s:any)=>s.status!=='inactive');
  return <div className="student-page-v2">
   <StudentArchiveTools school={props.school} students={props.students||[]} reload={props.reload}/>
-  <OfficialStudentsPage school={props.school} students={activeStudents} reload={props.reload}/>
+  <OfficialStudentsPage school={props.school} students={activeStudents} allStudents={props.students||[]} reload={props.reload}/>
  </div>;
 }
