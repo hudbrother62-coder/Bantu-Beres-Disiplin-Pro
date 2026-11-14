@@ -41,7 +41,7 @@ function parseOfficialStudents(file:ArrayBuffer){
  for(const sheetName of wb.SheetNames){
   const className=sheetName.trim();
   if(!className)continue;
-  const raw:any[][]=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:'',raw:true});
+  const raw:any[][]=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:'',raw:false});
   if(!raw.length)continue;
 
   let headerIndex=1;
@@ -160,23 +160,73 @@ export default function OfficialStudentsPage({school,students,allStudents=studen
  }
 
  async function runImport(){
-  if(!school||!rows.length)return;
-  setBusy(true);
-  const existingNis=new Set(students.filter((s:any)=>s.nis).map((s:any)=>norm(s.nis)));
-  const existingName=new Set(students.map((s:any)=>`${norm(s.name)}|${norm(s.class_name)}`));
-  const seen=new Set<string>();const insert:any[]=[];let skipped=0;
-  for(const r of rows){
-   const key=r.nis?`nis:${norm(r.nis)}`:`name:${norm(r.name)}|${norm(r.class_name)}`;
-   if(seen.has(key)||(r.nis&&existingNis.has(norm(r.nis)))||(!r.nis&&existingName.has(`${norm(r.name)}|${norm(r.class_name)}`))){skipped++;continue}
-   seen.add(key);insert.push({...r,school_id:school.id});
-  }
-  let err:any=null;
-  if(insert.length){const x=await sb.from('students').insert(insert);err=x.error}
-  if(!err)await sb.from('import_history').insert({school_id:school.id,import_type:'students_official_template',file_name:fileName,summary:{found:rows.length,inserted:insert.length,skipped}});
-  setBusy(false);
-  if(err){setStatus(err.message);return}
-  setStatus(`Import selesai: ${insert.length} siswa masuk, ${skipped} duplikat dilewati.`);
-  setRows([]);setFileName('');await reload();
+  if(busy||!school?.id||!rows.length)return;
+  setBusy(true);setStatus('');
+  try{
+   // Read every student belonging to the school, including Draft Hapus.
+   // The dashboard's students prop can be filtered and is limited by Supabase pagination.
+   const existingNis=new Set<string>();
+   const existingName=new Set<string>();
+   const pageSize=500;
+   for(let start=0;;start+=pageSize){
+    const {data,error}=await sb.from('students').select('nis,name,class_name')
+     .eq('school_id',school.id).order('id',{ascending:true}).range(start,start+pageSize-1);
+    if(error)throw new Error('Gagal memeriksa data siswa sekolah: '+error.message);
+    for(const s of data||[]){
+     if(s.nis)existingNis.add(norm(s.nis));
+     existingName.add(`${norm(s.name)}|${norm(s.class_name)}`);
+    }
+    if((data||[]).length<pageSize)break;
+   }
+
+   const seen=new Set<string>();
+   const insert:any[]=[];
+   let skipped=0;
+   for(const row of rows){
+    const nis=String(row.nis??'').trim()||null;
+    const name=String(row.name??'').trim();
+    const className=String(row.class_name??'').trim()||null;
+    if(!name){skipped++;continue}
+    const key=nis?`nis:${norm(nis)}`:`name:${norm(name)}|${norm(className)}`;
+    if(seen.has(key)||(nis&&existingNis.has(norm(nis)))||(!nis&&existingName.has(`${norm(name)}|${norm(className)}`))){
+     skipped++;continue;
+    }
+    seen.add(key);
+    insert.push({...row,name,nis,class_name:className,school_id:school.id});
+   }
+
+   let inserted=0;
+   // A second import may race this request, or an archived row may be hidden by RLS.
+   // Split only NIS-unique conflicts so that one duplicate never rejects the full file.
+   const saveBatch=async(batch:any[]):Promise<void>=>{
+    if(!batch.length)return;
+    const {error}=await sb.from('students').insert(batch);
+    if(!error){inserted+=batch.length;return}
+    if(error.code==='23505'&&String(error.message||'').includes('students_school_nis_unique')){
+     if(batch.length===1){skipped++;return}
+     const mid=Math.floor(batch.length/2);
+     await saveBatch(batch.slice(0,mid));
+     await saveBatch(batch.slice(mid));
+     return;
+    }
+    throw new Error(error.message||'Gagal menyimpan siswa.');
+   };
+   for(let start=0;start<insert.length;start+=100){
+    await saveBatch(insert.slice(start,start+100));
+   }
+
+   const history=await sb.from('import_history').insert({
+    school_id:school.id,import_type:'students_official_template',
+    file_name:fileName||'Excel',summary:{found:rows.length,inserted,skipped}
+   });
+   setStatus(`Import selesai: ${inserted} siswa baru masuk, ${skipped} duplikat dilewati (termasuk yang sudah ada di Draft Hapus).${history.error?' Riwayat import belum tercatat.':''}`);
+   setRows([]);setFileName('');
+   if(fileRef.current)fileRef.current.value='';
+   await reload();
+  }catch(error:any){
+   setStatus(error?.message||'Import gagal. Data yang sudah tersimpan tetap aman.');
+   // Preserve the preview so the user can retry without selecting the Excel again.
+  }finally{setBusy(false)}
  }
 
  const classOptions=Array.from(new Set(students.map((s:any)=>String(s.class_name||'').trim()).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b,'id',{numeric:true}));
